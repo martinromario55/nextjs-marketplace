@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "./_lib/db";
 import { CategoryTypes } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { stripe } from "./_lib/stripe";
 
 export type State = {
   status: "error" | "success" | undefined;
@@ -132,4 +133,100 @@ export async function UpdateUserSettings(prevState: any, formData: FormData) {
   };
 
   return state;
+}
+
+export async function BuyProduct(formData: FormData) {
+  const id = formData.get("id") as string;
+  const data = await prisma.product.findUnique({
+    where: {
+      id: id,
+    },
+    select: {
+      name: true,
+      smallDescription: true,
+      price: true,
+      images: true,
+    },
+  });
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          unit_amount: Math.round((data?.price as number) * 100), // Stripe calculates in decimals (Multiply the dollars by 100)
+          product_data: {
+            name: data?.name as string,
+            description: data?.smallDescription,
+            images: data?.images,
+          },
+        },
+        quantity: 1,
+      },
+    ],
+    success_url: "http://localhost:3000/payment/success",
+    cancel_url: "http://localhost:3000/payment/cancel",
+  });
+
+  return redirect(session.url as string);
+}
+
+export async function CreateStripeAccoutnLink() {
+  const { getUser } = getKindeServerSession();
+
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error();
+  }
+
+  const data = await prisma.user.findUnique({
+    where: {
+      id: user.id,
+    },
+    select: {
+      connectedAccountId: true,
+    },
+  });
+
+  const accountLink = await stripe.accountLinks.create({
+    account: data?.connectedAccountId as string,
+    refresh_url:
+      process.env.NODE_ENV === "development"
+        ? `http://localhost:3000/billing`
+        : `https://marshal-ui-yt.vercel.app/billing`,
+    return_url:
+      process.env.NODE_ENV === "development"
+        ? `http://localhost:3000/return/${data?.connectedAccountId}`
+        : `https://marshal-ui-yt.vercel.app/return/${data?.connectedAccountId}`,
+    type: "account_onboarding",
+  });
+
+  return redirect(accountLink.url);
+}
+
+export async function GetStripeDashboardLink() {
+  const { getUser } = getKindeServerSession();
+
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error();
+  }
+
+  const data = await prisma.user.findUnique({
+    where: {
+      id: user.id,
+    },
+    select: {
+      connectedAccountId: true,
+    },
+  });
+
+  const loginLink = await stripe.accounts.createLoginLink(
+    data?.connectedAccountId as string,
+  );
+
+  return redirect(loginLink.url);
 }

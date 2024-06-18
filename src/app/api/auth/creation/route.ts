@@ -1,4 +1,5 @@
 import prisma from "@/app/_lib/db";
+import { stripe } from "@/app/_lib/stripe";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { NextResponse } from "next/server";
 
@@ -16,6 +17,23 @@ export async function GET() {
 
   //   If user doesn't exist in the database, create new user
   if (!dbUser) {
+    // Create stripe account
+    const account = await stripe.accounts.create({
+      email: user.email as string,
+      controller: {
+        losses: {
+          payments: "application",
+        },
+        fees: {
+          payer: "application",
+        },
+        stripe_dashboard: {
+          type: "express",
+        },
+      },
+    });
+
+    // Create new user in the database
     dbUser = await prisma.user.create({
       data: {
         id: user.id,
@@ -24,6 +42,7 @@ export async function GET() {
         email: user.email ?? "",
         profileImage:
           user.picture ?? `https://avatar.vercel.sh/${user.given_name}`,
+        connectedAccountId: account.id,
       },
     });
   }
