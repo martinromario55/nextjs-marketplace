@@ -3,6 +3,7 @@ import { SellForm } from "../_components/form/SellForm";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { redirect } from "next/navigation";
 import prisma from "../_lib/db";
+import { unstable_noStore as noStore } from "next/cache";
 
 // If Stripe not activated, redirect user to /billing
 async function getData(userId: string) {
@@ -23,6 +24,7 @@ async function getData(userId: string) {
 }
 
 const SellPage = async () => {
+  noStore();
   const { getUser } = getKindeServerSession();
   const user = await getUser();
 
