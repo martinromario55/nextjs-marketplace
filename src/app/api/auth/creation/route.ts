@@ -49,5 +49,9 @@ export async function GET() {
     });
   }
 
-  return NextResponse.redirect(`${process.env.BASE_URL}`);
+  return NextResponse.redirect(
+    process.env.NODE_ENV === "development"
+      ? "http://localhost:3000"
+      : "https://nextjs-marketplace-wheat.vercel.app",
+  );
 }
