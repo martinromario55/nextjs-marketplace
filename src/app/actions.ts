@@ -84,14 +84,7 @@ export async function SellProduct(prevState: any, formData: FormData) {
     },
   });
 
-  //   return redirect(`/product/${data.id}`);
-
-  const state: State = {
-    status: "success",
-    message: "Your product has been uploaded",
-  };
-
-  return state;
+  return redirect(`/product/${data.id}`);
 }
 
 export async function UpdateUserSettings(prevState: any, formData: FormData) {
@@ -146,6 +139,11 @@ export async function BuyProduct(formData: FormData) {
       smallDescription: true,
       price: true,
       images: true,
+      User: {
+        select: {
+          connectedAccountId: true,
+        },
+      },
     },
   });
 
@@ -165,6 +163,12 @@ export async function BuyProduct(formData: FormData) {
         quantity: 1,
       },
     ],
+    payment_intent_data: {
+      application_fee_amount: Math.round((data?.price as number) * 100) * 0.1, // Get 10% of the value
+      transfer_data: {
+        destination: data?.User?.connectedAccountId as string,
+      },
+    },
     success_url: "http://localhost:3000/payment/success",
     cancel_url: "http://localhost:3000/payment/cancel",
   });
